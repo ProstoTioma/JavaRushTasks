@@ -2,8 +2,11 @@ package com.javarush.task.task32.task3209;
 
 import com.javarush.task.task32.task3209.listeners.FrameListener;
 import com.javarush.task.task32.task3209.listeners.TabbedPaneChangeListener;
+import com.javarush.task.task32.task3209.listeners.UndoListener;
 
 import javax.swing.*;
+import javax.swing.undo.CannotRedoException;
+import javax.swing.undo.CannotUndoException;
 import javax.swing.undo.UndoManager;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -15,7 +18,41 @@ public class View extends JFrame implements ActionListener {
     private JTextPane htmlTextPane = new JTextPane();
     private JEditorPane plainTextPane = new JEditorPane();
     private UndoManager undoManager = new UndoManager();
+    private UndoListener undoListener = new UndoListener(undoManager);
 
+    public void undo() {
+        try {
+            undoManager.undo();
+        } catch (CannotUndoException e) {
+            ExceptionHandler.log(e);
+        }
+    }
+
+    public boolean isHtmlTabSelected() {
+        return tabbedPane.getSelectedIndex() == 0;
+    }
+
+    public void redo() {
+        try {
+            undoManager.redo();
+        } catch (CannotRedoException e) {
+            ExceptionHandler.log(e);
+        }
+    }
+
+    public void selectHtmlTab() {
+        tabbedPane.setSelectedIndex(0);
+        resetUndo();
+
+    }
+
+    public void update() {
+        htmlTextPane.setDocument(controller.getDocument());
+    }
+
+    public void showAbout() {
+        JOptionPane.showMessageDialog(getContentPane(), "Тёма лучший программист!", "About", JOptionPane.INFORMATION_MESSAGE);
+    }
 
 
     public void setController(Controller controller) {
@@ -28,14 +65,33 @@ public class View extends JFrame implements ActionListener {
 
     @Override
     public void actionPerformed(ActionEvent e) {
+        String command = e.getActionCommand();
+        switch (command) {
+            case "Новый": controller.createNewDocument(); break;
+            case "Открыть": controller.openDocument(); break;
+            case "Сохранить": controller.saveDocument(); break;
+            case "Сохранить как...": controller.saveDocumentAs(); break;
+            case "Выход": controller.exit(); break;
+            case "О программе": showAbout(); break;
+        }
+    }
 
+    public UndoListener getUndoListener() {
+        return undoListener;
+    }
+
+    public void resetUndo() {
+        undoManager.discardAllEdits();
     }
 
     public boolean canUndo() {
-        return false;
+        if (undoManager.canUndo()) return true;
+        else return false;
     }
+
     public boolean canRedo() {
-        return false;
+        if (undoManager.canRedo()) return true;
+        else return false;
     }
 
     public void initMenuBar() {
@@ -59,7 +115,12 @@ public class View extends JFrame implements ActionListener {
     }
 
     public void selectedTabChanged() {
-
+        if (tabbedPane.getSelectedIndex() == 0) {
+            controller.setPlainText(plainTextPane.getText());
+        } else if (tabbedPane.getSelectedIndex() == 1) {
+            plainTextPane.setText(controller.getPlainText());
+        }
+        resetUndo();
     }
 
     public void initEditor() {
